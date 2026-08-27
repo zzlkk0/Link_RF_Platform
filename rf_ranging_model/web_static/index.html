@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>RF Ranging Lab</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">BLE · UWB · RFIC</p>
+      <h1>RF Ranging Lab</h1>
+      <p class="subtitle">跨层测距实验、可靠度判断与独立验收</p>
+    </div>
+    <div class="topbar-status">
+      <span class="pulse"></span>
+      <span id="serviceStatus">本地引擎连接中</span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="control-panel card">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">EXPERIMENT</p>
+          <h2>实验设置</h2>
+        </div>
+        <button id="resetButton" class="text-button" type="button">恢复默认</button>
+      </div>
+
+      <div class="preset-row" aria-label="场景预设">
+        <button class="preset active" data-preset="balanced" type="button">平衡场景</button>
+        <button class="preset" data-preset="los" type="button">干净 LOS</button>
+        <button class="preset" data-preset="multipath" type="button">强多径</button>
+        <button class="preset" data-preset="noisy" type="button">低信噪比</button>
+      </div>
+
+      <form id="scenarioForm">
+        <fieldset>
+          <legend>空间与反射</legend>
+          <label>
+            <span>真实距离 <output id="distanceOutput">8.0 m</output></span>
+            <input id="distance" name="distance_m" type="range" min="0.5" max="100" step="0.5" value="8">
+          </label>
+          <div class="two-columns">
+            <label>
+              <span>直达径幅度</span>
+              <input name="direct_path_gain" type="number" min="0.01" max="1.5" step="0.01" value="1">
+            </label>
+            <label>
+              <span>反射路径数</span>
+              <input name="reflection_count" type="number" min="0" max="5" step="1" value="2">
+            </label>
+          </div>
+          <div class="two-columns">
+            <label>
+              <span>首个反射幅度</span>
+              <input name="reflection_gain" type="number" min="0" max="1.5" step="0.05" value="0.55">
+            </label>
+            <label>
+              <span>首个反射延迟 / ns</span>
+              <input name="reflection_delay_ns" type="number" min="0.5" max="80" step="0.5" value="6">
+            </label>
+          </div>
+          <label>
+            <span>反射相位 / rad</span>
+            <input name="reflection_phase_rad" type="number" min="-3.1416" max="3.1416" step="0.05" value="2.55">
+          </label>
+        </fieldset>
+
+        <fieldset>
+          <legend>接收机环境</legend>
+          <div class="two-columns">
+            <label>
+              <span>SNR / dB</span>
+              <input name="snr_db" type="number" min="-10" max="120" step="1" value="28">
+            </label>
+            <label>
+              <span>相位噪声 / °</span>
+              <input name="phase_noise_deg" type="number" min="0" max="30" step="0.1" value="0.5">
+            </label>
+          </div>
+          <div class="two-columns">
+            <label>
+              <span>CFO / Hz</span>
+              <input name="cfo_hz" type="number" min="-5000" max="5000" step="5" value="20">
+            </label>
+            <label>
+              <span>群时延波纹 / ns</span>
+              <input name="group_delay_ripple_ns" type="number" min="0" max="5" step="0.01" value="0.08">
+            </label>
+          </div>
+          <label>
+            <span>UWB 相位对齐帧数</span>
+            <input name="uwb_frame_count" type="number" min="1" max="16" step="1" value="4">
+          </label>
+          <p class="field-note">4 帧用于弱首径/强晚径恢复；单帧模式保留作对照。</p>
+        </fieldset>
+
+        <fieldset>
+          <legend>频率相关 RFIC 校准</legend>
+          <label>
+            <span>校准模式</span>
+            <select name="calibration_mode">
+              <option value="frequency_profile" selected>复数频响 Profile</option>
+              <option value="scalar">仅标量群时延</option>
+              <option value="none">不校准</option>
+            </select>
+          </label>
+          <div class="two-columns">
+            <label>
+              <span>注入群时延 / ns</span>
+              <input name="base_group_delay_ns" type="number" min="-5" max="20" step="0.01" value="0.18">
+            </label>
+            <label>
+              <span>标定群时延 / ns</span>
+              <input name="calibration_delay_ns" type="number" min="-5" max="20" step="0.01" value="0.18">
+            </label>
+          </div>
+          <div class="two-columns">
+            <label>
+              <span>标定波纹 / ns</span>
+              <input name="calibration_ripple_ns" type="number" min="0" max="5" step="0.01" value="0.08">
+            </label>
+            <label>
+              <span>注入幅度波纹 / dB</span>
+              <input name="amplitude_ripple_db" type="number" min="0" max="6" step="0.05" value="0.5">
+            </label>
+          </div>
+          <label>
+            <span>标定幅度波纹 / dB</span>
+            <input name="calibration_amplitude_ripple_db" type="number" min="0" max="6" step="0.05" value="0.5">
+          </label>
+          <p class="field-note">Profile 来自独立显式输入的合成扫频，仅用于软件演示；不冒充 VNA/环回实测。</p>
+          <label>
+            <span>随机种子</span>
+            <input name="seed" type="number" min="0" max="2147483647" step="1" value="7">
+          </label>
+        </fieldset>
+
+        <button id="runButton" class="primary-button" type="submit">
+          <span>运行实验</span>
+          <span aria-hidden="true">→</span>
+        </button>
+      </form>
+    </aside>
+
+    <section class="workspace">
+      <div id="message" class="message hidden" role="status"></div>
+
+      <section class="example-lab card" aria-labelledby="examplesTitle">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">GUIDED EXAMPLES</p>
+            <h2 id="examplesTitle">一键教学案例</h2>
+          </div>
+          <span class="example-hint">点击案例即运行真实 Pipeline</span>
+        </div>
+        <div id="exampleGrid" class="example-grid" aria-label="可复现实验案例">
+          <button class="example-card" data-example="los" type="button" aria-pressed="false">
+            <span class="example-number">01</span>
+            <strong>理想 LOS</strong>
+            <small>无反射、无 RFIC 误差</small>
+            <span class="example-expectation">观察双制式基线精度</span>
+            <span class="example-result">点击运行</span>
+          </button>
+          <button class="example-card" data-example="ble_multipath" type="button" aria-pressed="false">
+            <span class="example-number">02</span>
+            <strong>BLE 复杂多径</strong>
+            <small>4 条强反射路径</small>
+            <span class="example-expectation">比较单径原始值与子空间候选</span>
+            <span class="example-result">点击运行</span>
+          </button>
+          <button class="example-card" data-example="uwb_late_single" type="button" aria-pressed="false">
+            <span class="example-number">03</span>
+            <strong>UWB 单帧反例</strong>
+            <small>首径 0.1、晚径 1.0、5 dB</small>
+            <span class="example-expectation">演示单帧锁到强晚径</span>
+            <span class="example-result">点击运行</span>
+          </button>
+          <button class="example-card" data-example="uwb_late_four" type="button" aria-pressed="false">
+            <span class="example-number">04</span>
+            <strong>UWB 四帧恢复</strong>
+            <small>与单帧反例相同信道</small>
+            <span class="example-expectation">观察首径恢复与保守置信度</span>
+            <span class="example-result">点击运行</span>
+          </button>
+          <button class="example-card" data-example="low_coherence" type="button" aria-pressed="false">
+            <span class="example-number">05</span>
+            <strong>低帧相干度</strong>
+            <small>−10 dB SNR、4 帧</small>
+            <span class="example-expectation">验证高置信 PASS 被降级</span>
+            <span class="example-result">点击运行</span>
+          </button>
+          <button class="example-card" data-example="bad_calibration" type="button" aria-pressed="false">
+            <span class="example-number">06</span>
+            <strong>错误校准保护</strong>
+            <small>0.5 m 场景误用 20 ns 校准</small>
+            <span class="example-expectation">观察 REJECTED / NO_PATH</span>
+            <span class="example-result">点击运行</span>
+          </button>
+        </div>
+        <div class="example-readout">
+          <div class="example-current">
+            <span>当前案例</span>
+            <strong id="exampleName">自由实验</strong>
+          </div>
+          <div>
+            <span>应该观察</span>
+            <p id="exampleExpected">可从左侧修改参数，或选择上方案例。</p>
+          </div>
+          <div>
+            <span>实际结果</span>
+            <p id="exampleObserved" aria-live="polite">等待运行。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="metric-grid" aria-label="核心结果">
+        <article class="metric-card card accent-blue">
+          <div class="metric-heading"><span>BLE 估计</span><span id="bleBadge" class="badge neutral">等待</span></div>
+          <strong id="bleDistance">—</strong>
+          <p id="bleError">运行实验后显示误差</p>
+          <div class="mini-metrics"><span>原始 <b id="bleRaw">—</b></span><span>候选 <b id="bleCandidate">—</b></span><span>置信度 <b id="bleConfidence">—</b></span><span>峰比 <b id="bleRatio">—</b></span><span>残差 <b id="bleResidual">—</b></span><span>解析器 <b id="bleMode">—</b></span><span>阶数 <b id="bleOrder">—</b></span></div>
+        </article>
+        <article class="metric-card card accent-orange">
+          <div class="metric-heading"><span>UWB 估计</span><span id="uwbBadge" class="badge neutral">等待</span></div>
+          <strong id="uwbDistance">—</strong>
+          <p id="uwbError">运行实验后显示误差</p>
+          <div class="mini-metrics"><span>置信度 <b id="uwbConfidence">—</b></span><span>原始 <b id="uwbRaw">—</b></span><span>积累帧 <b id="uwbFrames">—</b></span><span>帧相干度 <b id="uwbCoherence">—</b></span></div>
+        </article>
+        <article class="metric-card card accent-violet">
+          <div class="metric-heading"><span>NLOS 风险</span><span class="badge neutral">AI 基线</span></div>
+          <strong id="nlosProbability">—</strong>
+          <p>使用仿真真值特征的接口占位，不计入独立精度验收</p>
+          <div class="risk-track"><span id="riskFill"></span></div>
+        </article>
+      </section>
+
+      <section class="calibration-strip card" aria-label="RFIC 校准证据">
+        <div><span>RFIC 模式</span><strong id="calibrationMode">—</strong></div>
+        <div><span>BLE Profile</span><code id="bleProfile">—</code></div>
+        <div><span>UWB Profile</span><code id="uwbProfile">—</code></div>
+        <p id="calibrationNotice">等待实验结果</p>
+      </section>
+
+      <section class="chart-grid">
+        <article class="chart-card card">
+          <div class="chart-heading">
+            <div><p class="eyebrow">CHANNEL RESPONSE</p><h2>BLE 频率响应</h2></div>
+            <span>官方 72 频点</span>
+          </div>
+          <svg id="bleChart" class="chart" viewBox="0 0 720 280" role="img" aria-label="BLE频率响应图"></svg>
+        </article>
+        <article class="chart-card card">
+          <div class="chart-heading">
+            <div><p class="eyebrow">FIRST PATH</p><h2>UWB CIR</h2></div>
+            <span id="pathCount">— 条路径</span>
+          </div>
+          <svg id="uwbChart" class="chart" viewBox="0 0 720 280" role="img" aria-label="UWB CIR图"></svg>
+        </article>
+      </section>
+
+      <section class="chart-grid insight-grid" aria-label="结果解释图">
+        <article class="chart-card card">
+          <div class="chart-heading">
+            <div><p class="eyebrow">RANGING COMPARISON</p><h2>真值、原始值与最终输出</h2></div>
+            <span id="distanceSpread">等待实验</span>
+          </div>
+          <svg id="distanceChart" class="chart comparison-chart" viewBox="0 0 720 330" role="img" aria-label="BLE与UWB距离结果对比图"></svg>
+          <div class="chart-legend"><span class="legend-true">真值</span><span class="legend-raw">旧单径 / 原始</span><span class="legend-candidate">鲁棒候选</span><span class="legend-final">最终可用</span></div>
+        </article>
+        <article class="chart-card card">
+          <div class="chart-heading">
+            <div><p class="eyebrow">PATH STRUCTURE</p><h2>多径延迟与幅度</h2></div>
+            <span id="pathTimelineNote">相对 LOS 延迟</span>
+          </div>
+          <svg id="pathChart" class="chart path-chart" viewBox="0 0 720 330" role="img" aria-label="传播路径延迟与幅度图"></svg>
+          <p class="chart-note">横轴是相对直达径的超额延迟，柱高是复增益幅度；它直接展示弱首径和强晚径的可辨识难度。</p>
+        </article>
+      </section>
+
+      <section class="acceptance card">
+        <div class="section-heading">
+          <div><p class="eyebrow">ACCEPTANCE</p><h2>独立验收</h2></div>
+          <div id="acceptanceBadges" class="badge-row"></div>
+        </div>
+        <div id="acceptanceSummary" class="acceptance-summary">读取验收结果中…</div>
+        <div id="acceptanceChecks" class="check-list"></div>
+      </section>
+    </section>
+  </main>
+
+  <footer>
+    <span>所有运算均在本机完成</span>
+    <span>软件 PASS ≠ Bluetooth / IEEE 认证</span>
+  </footer>
+
+  <script src="/app.js" defer></script>
+</body>
+</html>

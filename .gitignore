@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+.venv/
+build/
+dist/
+*.egg-info/
+outputs/*
+!outputs/.gitkeep
+matlab_validation/output/*
+!matlab_validation/output/.gitkeep
